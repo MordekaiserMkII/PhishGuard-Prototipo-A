@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PhishGuard – Seguridad Institucional</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+
+    :root {
+      --bg:         #020b18;
+      --bg-sidebar: #041224;
+      --bg-panel:   #071a30;
+      --bg-card:    #0a2040;
+      --bg-soft:    rgba(255,255,255,0.04);
+      --accent:     #1565ff;
+      --accent2:    #0d47e3;
+      --cyan:       #00d4ff;
+      --green:      #00e676;
+      --red:        #ff3d3d;
+      --orange:     #ff8c00;
+      --yellow:     #ffd600;
+      --text:       #e8f4ff;
+      --muted:      #6b92b8;
+      --border:     #0d2a4a;
+      --border2:    rgba(255,255,255,0.09);
+      --shadow:     0 28px 80px rgba(0,0,0,0.6);
+      --sidebar-w:  210px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Exo 2', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+
+    #bgCanvas {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    }
+
+    .app {
+      position: relative; z-index: 1;
+      display: flex; height: 100vh;
+    }
+
+ 
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 0;
+      z-index: 10;
+    }
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 10px;
+      padding: 22px 18px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      box-shadow: 0 0 16px rgba(21,101,255,.5);
+    }
+    .brand-name {
+      font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
+      letter-spacing: .5px; line-height: 1;
+    }
+    .brand-name span { color: var(--cyan); }
+
+    .nav-section { padding: 14px 10px; flex: 1; }
+    .nav-label {
+      font-size: .68rem; font-weight: 700; letter-spacing: .1em;
+      color: #1e3a5a; text-transform: uppercase;
+      padding: 0 8px; margin-bottom: 6px; margin-top: 12px;
+    }
+    .nav-btn {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      padding: 10px 10px; border-radius: 10px;
+      background: transparent; border: none; color: var(--muted);
+      font-family: 'Exo 2', sans-serif; font-size: .875rem; font-weight: 500;
+      cursor: pointer; text-align: left;
+      transition: all .18s;
+      margin-bottom: 2px;
+    }
+    .nav-btn:hover { color: var(--text); background: rgba(21,101,255,.1); }
+    .nav-btn.active {
+      color: var(--text); background: rgba(21,101,255,.18);
+      border-left: 3px solid var(--accent);
+      padding-left: 7px;
+    }
+    .nav-btn .ni { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
+
+    .sidebar-footer {
+      padding: 14px 14px 18px;
+      border-top: 1px solid var(--border);
+    }
+    .rt-pill {
+      display: flex; align-items: center; gap: 7px;
+      font-size: .75rem; color: var(--green);
+      background: rgba(0,230,118,.08); border: 1px solid rgba(0,230,118,.2);
+      border-radius: 20px; padding: 7px 11px;
+    }
+    .rt-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1.8s ease-in-out infinite; flex-shrink: 0; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* ══════════════════════════════════════════
+       MAIN CONTENT
+    ══════════════════════════════════════════ */
+    .main {
+      flex: 1; overflow-y: auto; position: relative;
+      scroll-behavior: smooth;
+    }
+    .main::-webkit-scrollbar { width: 4px; }
+    .main::-webkit-scrollbar-track { background: transparent; }
+    .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ══════════════════════════════════════════
+       SCREENS
+    ══════════════════════════════════════════ */
+    .screen { display: none; padding: 28px 32px; animation: fadeIn .22s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ══════════════════════════════════════════
+       TOPBAR
+    ══════════════════════════════════════════ */
+    .topbar {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 24px;
+    }
+    .topbar h1 { font-size: 2rem; font-weight: 900; letter-spacing: -.045em; line-height: 1; margin-bottom: 5px; }
+    .topbar p  { font-size: .87rem; color: var(--muted); max-width: 600px; line-height: 1.5; }
+    .topbar-actions { display: flex; gap: 9px; flex-shrink: 0; }
+    .icon-btn {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--muted); font-size: 15px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .18s;
+    }
+    .icon-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ══════════════════════════════════════════
+       CARDS
+    ══════════════════════════════════════════ */
+    .card {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 22px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.3);
+    }
+    .soft-card {
+      background: var(--bg-soft); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; }
+
+    /* ══════════════════════════════════════════
+       GRID HELPERS
+    ══════════════════════════════════════════ */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+
+    /* ══════════════════════════════════════════
+       BUTTONS
+    ══════════════════════════════════════════ */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      border: none; border-radius: 11px; padding: 12px 18px;
+      font-family: 'Exo 2', sans-serif; font-size: .88rem; font-weight: 700;
+      cursor: pointer; transition: all .18s; text-decoration: none; color: #fff;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .btn:active { transform: translateY(0); filter: brightness(.95); }
+    .btn-primary { background: linear-gradient(90deg, var(--accent), var(--accent2)); box-shadow: 0 4px 20px rgba(21,101,255,.4); }
+    .btn-red     { background: linear-gradient(90deg, #c62828, #e53935); box-shadow: 0 4px 18px rgba(229,57,53,.4); }
+    .btn-green   { background: linear-gradient(90deg, #00897b, #00e676); color: #001a0e; box-shadow: 0 4px 18px rgba(0,230,118,.3); }
+    .btn-ghost   { background: rgba(255,255,255,.07); border: 1px solid var(--border2); color: var(--muted); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+    .btn-outline:hover { background: rgba(21,101,255,.12); color: var(--cyan); }
+    .btn-row { display: flex; gap: 11px; margin-top: 18px; }
+    .btn-row .btn { flex: 1; }
+
+    /* ══════════════════════════════════════════
+       PILLS / BADGES
+    ══════════════════════════════════════════ */
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px; border-radius: 20px; font-size: .75rem; font-weight: 700;
+    }
+    .pill-green  { color: #b2ffda; background: rgba(0,230,118,.13); border: 1px solid rgba(0,230,118,.3); }
+    .pill-red    { color: #ffb3b3; background: rgba(255,61,61,.13);  border: 1px solid rgba(255,61,61,.3); }
+    .pill-yellow { color: #fff2b3; background: rgba(255,214,0,.11);  border: 1px solid rgba(255,214,0,.3); }
+    .pill-blue   { color: #b3d4ff; background: rgba(21,101,255,.14); border: 1px solid rgba(21,101,255,.3); }
+    .pill-orange { color: #ffd6a0; background: rgba(255,140,0,.13);  border: 1px solid rgba(255,140,0,.3); }
+
+    /* ══════════════════════════════════════════
+       TOGGLE SWITCH
+    ══════════════════════════════════════════ */
+    .toggle-wrap { position: relative; width: 46px; height: 25px; flex-shrink: 0; }
+    .toggle-wrap input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--accent); border-radius: 25px; transition: background .3s;
+    }
+    .toggle-slider::before {
+      content:''; position: absolute;
+      width: 19px; height: 19px; border-radius: 50%; background: #fff;
+      top: 3px; left: 3px; transition: transform .3s;
+    }
+    .toggle-wrap input:checked + .toggle-slider { background: var(--cyan); }
+    .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(21px); }
+    .toggle-wrap input:not(:checked) + .toggle-slider { background: #1a3050; }
+
+    /* ══════════════════════════════════════════
+       ROW ITEMS (activity, alerts, history…)
+    ══════════════════════════════════════════ */
+    .row-item {
+      display: flex; align-items: center; gap: 13px;
+      background: var(--bg-soft); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 13px 16px; margin-top: 10px;
+    }
+    .row-item.clickable { cursor: pointer; transition: all .18s; }
+    .row-item.clickable:hover { border-color: rgba(21,101,255,.5); background: rgba(21,101,255,.08); transform: translateX(2px); }
+    .app-ico {
+      width: 42px; height: 42px; border-radius: 11px;
+      background: rgba(255,255,255,.08); border: 1px solid var(--border2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .row-item .ri-body { flex: 1; }
+    .row-item .ri-name { font-size: .9rem; font-weight: 600; }
+    .row-item .ri-sub  { font-size: .77rem; color: var(--muted); margin-top: 2px; }
+
+    /* ══════════════════════════════════════════
+       FILTER CHIPS
+    ══════════════════════════════════════════ */
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .chip {
+      padding: 8px 14px; border-radius: 20px; font-size: .8rem; font-weight: 700;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border2); color: var(--muted);
+      cursor: pointer; transition: all .18s;
+    }
+    .chip:hover { color: var(--text); border-color: var(--muted); }
+    .chip.active { color: var(--text); background: rgba(21,101,255,.2); border-color: rgba(21,101,255,.5); }
+
+    /* ══════════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════════ */
+    #toast {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      background: var(--bg-panel); border: 1px solid rgba(0,212,255,.3);
+      border-radius: 12px; padding: 13px 18px; font-size: .87rem; font-weight: 600;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      opacity: 0; pointer-events: none; transform: translateY(-6px);
+      transition: all .2s ease;
+      display: flex; align-items: center; gap: 9px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ══════════════════════════════════════════
+       MODAL
+    ══════════════════════════════════════════ */
+    #modal {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.6); backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    #modal.show { display: flex; }
+    .modal-box {
+      width: min(520px,100%); background: var(--bg-panel);
+      border: 1px solid rgba(0,212,255,.2); border-radius: 20px; padding: 26px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.5);
+      animation: fadeIn .22s ease;
+    }
+    .modal-box h2 { font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; }
+    .modal-box p  { color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: LOGIN ──
+    ══════════════════════════════════════════ */
+    .login-layout {
+      display: grid; grid-template-columns: 1fr 1.1fr; gap: 20px; align-items: stretch;
+    }
+    .login-visual {
+      min-height: 460px; border-radius: 16px;
+      border: 1px solid rgba(21,101,255,.3);
+      background: radial-gradient(circle at 50% 40%, rgba(21,101,255,.35), transparent 55%),
+                  linear-gradient(160deg, rgba(21,101,255,.12), rgba(0,0,0,.05));
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 14px; position: relative; overflow: hidden;
+    }
+    .login-visual::before {
+      content:''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(90deg, transparent 0 20px, rgba(255,255,255,.02) 21px 22px);
+    }
+    .shield-big { font-size: 6.5rem; filter: drop-shadow(0 0 30px rgba(0,212,255,.9)); position: relative; z-index: 1; animation: float 3.5s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .login-visual h2 { font-family: 'Rajdhani',sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--text); position: relative; z-index: 1; }
+    .login-visual p  { color: var(--muted); font-size: .85rem; position: relative; z-index: 1; }
+
+    .login-form .card { height: 100%; }
+    .form-title  { font-size: 1.35rem; font-weight: 800; margin-bottom: 4px; }
+    .form-sub    { font-size: .83rem; color: var(--muted); margin-bottom: 22px; }
+    .field-label { font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .field-wrap  {
+      display: flex; align-items: center; gap: 0;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 16px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(21,101,255,.2); }
+    .field-wrap .fi { padding: 0 13px; color: var(--muted); font-size: 16px; }
+    .field-wrap input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text); font-family: 'Exo 2', sans-serif; font-size: .93rem; padding: 13px 0;
+    }
+    .field-wrap input::placeholder { color: #2a4a6a; }
+    .field-wrap .fi-right { padding: 0 13px; cursor: pointer; color: var(--muted); }
+    .field-wrap.error { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255,61,61,.15); }
+    .login-extra { display: flex; justify-content: space-between; align-items: center; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+    .login-extra a { color: var(--cyan); text-decoration: none; }
+    .validation { min-height: 20px; font-size: .82rem; font-weight: 700; color: var(--red); margin-bottom: 8px; }
+    .login-divider { text-align: center; color: var(--muted); font-size: .78rem; margin: 12px 0; }
+    .footer-note { margin-top: 20px; display: flex; align-items: center; gap: 7px; font-size: .75rem; color: #1e3a5a; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: DASHBOARD ──
+    ══════════════════════════════════════════ */
+    .hero-banner {
+      background: linear-gradient(135deg, #062045 0%, #041535 100%);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px 28px; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .hero-banner::before {
+      content:''; position: absolute; top: -40px; right: 120px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(21,101,255,.2) 0%, transparent 70%);
+    }
+    .hero-banner h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 5px; }
+    .hero-banner p  { font-size: .85rem; color: var(--muted); }
+    .hero-shield-icon { font-size: 60px; filter: drop-shadow(0 0 18px rgba(0,212,255,.6)); flex-shrink: 0; }
+
+    .stat-card { padding: 18px 20px; }
+    .stat-label { font-size: .77rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+    .stat-val { font-size: 1.9rem; font-weight: 900; letter-spacing: -.04em; }
+    .stat-sub { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+    .gauge-row { display: flex; align-items: center; gap: 22px; }
+    .gauge-wrap { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
+    .gauge-wrap canvas { position: absolute; inset: 0; }
+    .gauge-center {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .gauge-pct { font-size: 1.4rem; font-weight: 900; color: var(--cyan); }
+    .gauge-lbl { font-size: .65rem; color: var(--green); font-weight: 700; }
+
+    .check-list { display: flex; flex-direction: column; gap: 8px; }
+    .check-item { display: flex; align-items: center; gap: 9px; font-size: .85rem; }
+    .cdot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 5px var(--accent); flex-shrink: 0; }
+
+    .section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-hdr h3 { font-size: .95rem; font-weight: 700; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: THREAT ALERT ──
+    ══════════════════════════════════════════ */
+    .threat-card {
+      background: radial-gradient(circle at 15% 20%, rgba(255,61,61,.15), transparent 40%),
+                  var(--bg-panel);
+      border: 1px solid rgba(255,61,61,.3);
+    }
+    .threat-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    .threat-icon {
+      width: 58px; height: 58px; border-radius: 14px; flex-shrink: 0;
+      background: rgba(255,61,61,.12); border: 1px solid rgba(255,61,61,.3);
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+      animation: pulseRed 2s ease-in-out infinite;
+    }
+    @keyframes pulseRed { 0%,100%{box-shadow:0 0 0 0 rgba(255,61,61,.4)} 50%{box-shadow:0 0 0 10px rgba(255,61,61,0)} }
+    .threat-title h2 { font-size: 1.4rem; font-weight: 900; color: var(--red); margin-bottom: 4px; }
+    .threat-title p  { font-size: .85rem; color: var(--muted); }
+
+    .info-block { background: rgba(21,101,255,.07); border: 1px solid var(--border); border-radius: 11px; padding: 14px 16px; margin-bottom: 14px; }
+    .info-lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+    .info-val { font-size: .9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .badge-sus { font-size: .72rem; font-weight: 700; background: rgba(255,140,0,.15); color: var(--orange); border: 1px solid rgba(255,140,0,.4); border-radius: 5px; padding: 2px 8px; }
+
+    .reason-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .reason { display: flex; align-items: center; gap: 10px; font-size: .86rem; padding: 9px 12px; border-radius: 9px; background: rgba(255,255,255,.04); border: 1px solid var(--border2); }
+    .reason.clickable:hover { border-color: rgba(255,140,0,.4); background: rgba(255,140,0,.06); cursor: pointer; }
+
+    .risk-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+    .risk-label { font-size: .8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .risk-val   { font-size: .88rem; font-weight: 900; color: var(--red); }
+    .risk-bar-bg   { height: 6px; background: var(--border); border-radius: 6px; margin-bottom: 18px; }
+    .risk-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--orange), var(--red)); width: 88%; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: DETAIL ──
+    ══════════════════════════════════════════ */
+    .threat-type-card {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: var(--bg-soft); border: 1px solid var(--border2);
+      border-radius: 13px; padding: 16px 18px; margin-bottom: 12px;
+    }
+    .ttype-ico { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .ttype-ico.t-red    { background: rgba(255,61,61,.12);  border: 1px solid rgba(255,61,61,.25); }
+    .ttype-ico.t-orange { background: rgba(255,140,0,.12);  border: 1px solid rgba(255,140,0,.25); }
+    .ttype-ico.t-yellow { background: rgba(255,214,0,.1);   border: 1px solid rgba(255,214,0,.25); }
+    .ttype-title { font-size: .93rem; font-weight: 700; margin-bottom: 4px; }
+    .ttype-red    .ttype-title { color: var(--red); }
+    .ttype-orange .ttype-title { color: var(--orange); }
+    .ttype-yellow .ttype-title { color: var(--yellow); }
+    .ttype-desc { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+
+    .tips-box { background: var(--bg-soft); border: 1px solid rgba(0,230,118,.2); border-radius: 13px; padding: 16px 18px; margin-bottom: 20px; }
+    .tips-box h4 { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; }
+    .tip { display: flex; align-items: flex-start; gap: 9px; font-size: .86rem; color: var(--muted); margin-bottom: 9px; }
+    .tip:last-child { margin-bottom: 0; }
+    .tip-ck { color: var(--green); flex-shrink: 0; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: BLOCKED ──
+    ══════════════════════════════════════════ */
+    .blocked-hero {
+      min-height: calc(100vh - 100px);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .blocked-content { max-width: 560px; text-align: left; width: 100%; }
+    .blocked-top { display: flex; align-items: center; gap: 26px; margin-bottom: 26px; }
+    .blocked-shield { font-size: 78px; filter: drop-shadow(0 0 28px rgba(0,230,118,.8)); animation: floatShield 2.5s ease-in-out infinite; }
+    @keyframes floatShield { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .blocked-top h1 { font-size: 2rem; font-weight: 900; margin-bottom: 6px; }
+    .blocked-top p  { font-size: .88rem; color: var(--muted); line-height: 1.55; }
+
+    .blocked-domain-row {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 13px; padding: 14px 18px; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .bd-left .bd-lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+    .bd-left .bd-val { font-size: .87rem; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+    .blocked-badge { display: flex; align-items: center; gap: 7px; font-size: .8rem; font-weight: 700; color: var(--green); background: rgba(0,230,118,.1); border: 1px solid rgba(0,230,118,.3); border-radius: 8px; padding: 6px 13px; }
+    .bbl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 5px var(--green); }
+
+    .achieve-box { background: var(--bg-panel); border: 1px solid rgba(0,230,118,.2); border-radius: 13px; padding: 16px 18px; margin-bottom: 22px; }
+    .achieve-box h4 { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--green); margin-bottom: 13px; }
+    .ach-item { display: flex; align-items: flex-start; gap: 9px; font-size: .86rem; color: var(--muted); margin-bottom: 9px; }
+    .ach-item:last-child { margin-bottom: 0; }
+    .ach-ck { color: var(--green); flex-shrink: 0; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: ALERTS CENTER ──
+    ══════════════════════════════════════════ */
+    /* uses row-item / pill styles above */
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: LEARNING ──
+    ══════════════════════════════════════════ */
+    .learn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .learn-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 12px; background: var(--bg-soft); border: 1px solid var(--border2); margin-bottom: 10px; cursor: pointer; transition: all .18s; }
+    .learn-row:hover { border-color: rgba(21,101,255,.4); background: rgba(21,101,255,.08); }
+    .learn-ico { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .learn-title { font-size: .88rem; font-weight: 700; margin-bottom: 3px; }
+    .learn-desc  { font-size: .78rem; color: var(--muted); line-height: 1.45; }
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: HISTORY ──
+    ══════════════════════════════════════════ */
+    /* uses row-item styles */
+
+    /* ══════════════════════════════════════════
+       ── SCREEN: SETTINGS ──
+    ══════════════════════════════════════════ */
+    .config-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 12px; background: var(--bg-soft); border: 1px solid var(--border2); margin-bottom: 10px; }
+    .config-label strong { display: block; font-size: .9rem; font-weight: 700; margin-bottom: 3px; }
+    .config-label small  { font-size: .78rem; color: var(--muted); }
+    label.field-label { display: block; font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; margin-top: 14px; }
+    .settings-input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.05); color: var(--text); font-family: 'Exo 2',sans-serif; font-size: .9rem; outline: none; transition: border-color .2s, box-shadow .2s; }
+    .settings-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(21,101,255,.2); }
+    select.settings-input option { background: #071a30; color: var(--text); }
+
+    /* hidden util */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ══ BACKGROUND CANVAS ══ -->
+<canvas id="bgCanvas"></canvas>
+
+<!-- ══ TOAST ══ -->
+<div id="toast">🛡️ <span id="toastMsg">Acción realizada</span></div>
+
+<!-- ══ MODAL ══ -->
+<div id="modal">
+  <div class="modal-box">
+    <h2 id="modalTitle">Título</h2>
+    <p id="modalText">Descripción.</p>
+    <button class="btn btn-primary" id="closeModal">Entendido</button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div class="app">
+
+  <!-- ════ SIDEBAR ════ -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">🛡️</div>
+      <div class="brand-name">Phish<span>Guard</span></div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Principal</div>
+      <button class="nav-btn active" data-target="login">     <span class="ni">🔐</span> Login</button>
+      <button class="nav-btn"        data-target="dashboard"> <span class="ni">🏠</span> Panel principal</button>
+
+      <div class="nav-label">Seguridad</div>
+      <button class="nav-btn" data-target="alerts">   <span class="ni">🚨</span> Centro de alertas</button>
+      <button class="nav-btn" data-target="threat">   <span class="ni">⚠️</span> Amenaza activa</button>
+      <button class="nav-btn" data-target="detail">   <span class="ni">🔍</span> Detalle amenaza</button>
+      <button class="nav-btn" data-target="blocked">  <span class="ni">⛔</span> Sitio bloqueado</button>
+
+      <div class="nav-label">Más</div>
+      <button class="nav-btn" data-target="learning"> <span class="ni">🎓</span> Aprendizaje</button>
+      <button class="nav-btn" data-target="history">  <span class="ni">📋</span> Historial</button>
+      <button class="nav-btn" data-target="settings"> <span class="ni">⚙️</span> Configuración</button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="rt-pill">
+        <span class="rt-dot"></span> Protección activa
+      </div>
+    </div>
+  </aside>
+
+  <!-- ════ MAIN ════ -->
+  <main class="main">
+
+    <!-- ══════════════════ LOGIN ══════════════════ -->
+    <section class="screen active" id="login">
+      <div class="topbar">
+        <div>
+          <h1>Inicio de sesión seguro</h1>
+          <p>Acceso rápido y seguro para clientes institucionales.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-modal-title="Ayuda de acceso" data-modal-text="Escribe tu correo institucional con formato válido (usuario@empresa.com) y una contraseña de al menos 6 caracteres. Si olvidaste tu contraseña, contacta a tu administrador.">❓</button>
+        </div>
+      </div>
+
+      <div class="login-layout">
+        <div class="login-visual">
+          <div class="shield-big">🔒</div>
+          <h2>Identidad protegida</h2>
+          <p>Acceso cifrado · Conexión segura</p>
+        </div>
+
+        <div class="login-form">
+          <div class="card" style="height:100%">
+            <p class="form-title">Bienvenido a PhishGuard</p>
+            <p class="form-sub">Ingresa para revisar el estado de protección.</p>
+
+            <div class="field-label">Correo electrónico</div>
+            <div class="field-wrap" id="emailWrap">
+              <span class="fi">✉️</span>
+              <input id="loginEmail" type="email" placeholder="ejemplo@empresa.com"/>
+            </div>
+
+            <div class="field-label">Contraseña</div>
+            <div class="field-wrap" id="pwWrap">
+              <span class="fi">🔒</span>
+              <input id="loginPw" type="password" placeholder="Mínimo 6 caracteres"/>
+              <span class="fi-right" id="togglePw">👁️</span>
+            </div>
+
+            <div class="login-extra">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" style="accent-color:var(--accent)"/> Recordarme
+              </label>
+              <a href="#" onclick="showToast('📧 Se ha enviado un correo de recuperación.')">¿Olvidaste tu contraseña?</a>
+            </div>
+
+            <div class="validation" id="loginMsg"></div>
+
+            <button class="btn btn-primary" id="loginBtn" style="width:100%">
+              🛡️ &nbsp;Iniciar sesión
+            </button>
+
+            <div class="login-divider">— o —</div>
+
+            <button class="btn btn-ghost" style="width:100%" onclick="showToast('🔗 Simulación: acceso con Google institucional.')">
+              Continuar con Google
+            </button>
+
+            <div class="footer-note">🛡️ Tus datos están protegidos con cifrado de nivel empresarial.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="dashboard">
+      <div class="topbar">
+        <div>
+          <h1>Panel principal</h1>
+          <p>Resumen de protección y actividad reciente en tiempo real.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-target="alerts">🔔</button>
+          <button class="icon-btn" data-target="settings">⚙️</button>
+        </div>
+      </div>
+
+      <div class="hero-banner">
+        <div>
+          <h2>¡Todo está protegido!</h2>
+          <p>Monitoreamos tus actividades en tiempo real.</p>
+        </div>
+        <div class="hero-shield-icon">🛡️</div>
+      </div>
+
+      <div class="g2" style="margin-bottom:18px">
+        <div class="card gauge-row">
+          <div class="gauge-wrap">
+            <canvas id="gaugeCanvas" width="100" height="100"></canvas>
+            <div class="gauge-center">
+              <span class="gauge-pct">98%</span>
+              <span class="gauge-lbl">Excelente</span>
+            </div>
+          </div>
+          <div class="check-list">
+            <div class="check-item"><span class="cdot"></span> Navegación segura</div>
+            <div class="check-item"><span class="cdot"></span> Correos seguros</div>
+            <div class="check-item"><span class="cdot"></span> Apps protegidas</div>
+            <div class="check-item"><span class="cdot"></span> Descargas seguras</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="stat-label">Protección en tiempo real</div>
+          <div class="stat-val" id="rtStatusText" style="color:var(--green)">ACTIVA</div>
+          <div class="stat-sub">Monitoreando navegación, correos y descargas.</div>
+          <div style="margin-top:14px; display:flex; align-items:center; gap:10px">
+            <label class="toggle-wrap">
+              <input type="checkbox" id="rtToggle" checked onchange="toggleRT()"/>
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-size:.82rem;color:var(--muted)" id="rtToggleLabel">Desactivar</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-hdr">
+        <h3>Actividad reciente</h3>
+        <button class="btn btn-ghost" style="padding:7px 13px;font-size:.8rem" data-target="history">Ver todo →</button>
+      </div>
+      <div class="card">
+        <div class="row-item clickable" data-modal-title="Gmail analizado" data-modal-text="El correo fue analizado y no se detectaron enlaces sospechosos ni dominios externos de riesgo. Todo está en orden.">
+          <div class="app-ico" style="background:rgba(234,67,53,.12)">📧</div>
+          <div class="ri-body"><div class="ri-name">Correo de Gmail</div><div class="ri-sub">Analizado · Hace 2 min</div></div>
+          <span class="pill pill-green">● Seguro</span>
+        </div>
+        <div class="row-item clickable" data-target="threat">
+          <div class="app-ico" style="background:rgba(23,107,175,.12)">🎮</div>
+          <div class="ri-body"><div class="ri-name">Steam (Juego)</div><div class="ri-sub">Analizado · Hace 10 min · <span style="color:var(--orange)">revisar</span></div></div>
+          <span class="pill pill-yellow">⚠ Revisar</span>
+        </div>
+        <div class="row-item clickable" data-target="threat">
+          <div class="app-ico" style="background:rgba(66,133,244,.12)">🌐</div>
+          <div class="ri-body"><div class="ri-name">Navegador Chrome</div><div class="ri-sub">Analizado · Hace 15 min · <span style="color:var(--red)">amenaza</span></div></div>
+          <span class="pill pill-red">🚨 Amenaza</span>
+        </div>
+        <div class="row-item clickable" data-modal-title="BancoEstado verificado" data-modal-text="La aplicación fue reconocida como legítima. El sistema mantiene el monitoreo por si aparece un dominio imitador.">
+          <div class="app-ico" style="background:rgba(255,165,0,.1)">🏦</div>
+          <div class="ri-body"><div class="ri-name">BancoEstado App</div><div class="ri-sub">Analizado · Hace 1 h</div></div>
+          <span class="pill pill-green">● Seguro</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="alerts">
+      <div class="topbar">
+        <div>
+          <h1>Centro de alertas</h1>
+          <p>Filtra y revisa todos los eventos de seguridad detectados.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-target="dashboard">🏠</button>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <button class="chip active" data-filter="all">Todas</button>
+        <button class="chip" data-filter="high">Riesgo alto</button>
+        <button class="chip" data-filter="medium">Riesgo medio</button>
+        <button class="chip" data-filter="safe">Seguros</button>
+        <button class="chip" data-filter="blocked">Bloqueados</button>
+      </div>
+
+      <div class="card">
+        <div class="row-item clickable alert-item" data-kind="high" data-target="threat">
+          <div class="app-ico" style="background:rgba(255,61,61,.12)">🚨</div>
+          <div class="ri-body"><div class="ri-name">Posible phishing detectado</div><div class="ri-sub">secure-verification-account.com · Chrome</div></div>
+          <span class="pill pill-red">Alto</span>
+        </div>
+        <div class="row-item clickable alert-item" data-kind="medium" data-modal-title="Correo sospechoso" data-modal-text="El mensaje contiene un enlace acortado y un remitente externo. Se recomienda no abrirlo sin verificar el origen.">
+          <div class="app-ico" style="background:rgba(255,214,0,.1)">📩</div>
+          <div class="ri-body"><div class="ri-name">Correo externo revisado</div><div class="ri-sub">Enlace acortado detectado · Gmail</div></div>
+          <span class="pill pill-yellow">Medio</span>
+        </div>
+        <div class="row-item clickable alert-item" data-kind="blocked" data-modal-title="Sitio imitador bloqueado" data-modal-text="Un sitio que imitaba a una entidad financiera fue bloqueado automáticamente por riesgo alto de suplantación de identidad.">
+          <div class="app-ico" style="background:rgba(255,61,61,.1)">⛔</div>
+          <div class="ri-body"><div class="ri-name">Sitio imitador bloqueado</div><div class="ri-sub">login-seguro-verificacion.net</div></div>
+          <span class="pill pill-red">Bloqueado</span>
+        </div>
+        <div class="row-item clickable alert-item" data-kind="safe" data-modal-title="Descarga verificada" data-modal-text="El archivo fue analizado y no presentó comportamiento sospechoso ni código malicioso.">
+          <div class="app-ico" style="background:rgba(0,230,118,.1)">✅</div>
+          <div class="ri-body"><div class="ri-name">Descarga verificada</div><div class="ri-sub">recurso-clase.pdf · 2.3 MB</div></div>
+          <span class="pill pill-green">Seguro</span>
+        </div>
+        <div class="row-item clickable alert-item" data-kind="safe" data-modal-title="Sitio institucional" data-modal-text="El dominio coincide con una fuente confiable y no solicita datos sensibles de forma irregular.">
+          <div class="app-ico" style="background:rgba(21,101,255,.1)">🌐</div>
+          <div class="ri-body"><div class="ri-name">Sitio institucional revisado</div><div class="ri-sub">portal.empresa.com</div></div>
+          <span class="pill pill-green">Seguro</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="threat">
+      <div class="topbar">
+        <div>
+          <h1>Amenaza detectada</h1>
+          <p>PhishGuard detectó señales de riesgo antes de que ingresaras información.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-target="dashboard">✕</button>
+        </div>
+      </div>
+
+      <div class="card threat-card">
+        <div class="threat-header">
+          <div class="threat-icon">⚠️</div>
+          <div class="threat-title">
+            <h2>¡Amenaza detectada!</h2>
+            <p>Posible sitio de phishing · Navegador Chrome</p>
+          </div>
+        </div>
+
+        <div class="info-block">
+          <div style="margin-bottom:12px">
+            <div class="info-lbl">Detectado en:</div>
+            <div class="info-val">🌐 &nbsp;Navegador Chrome</div>
+          </div>
+          <div>
+            <div class="info-lbl">Sitio:</div>
+            <div class="info-val">
+              secure-verification-account.com
+              <span class="badge-sus">Sospechoso</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-lbl" style="margin-bottom:10px">¿Por qué es peligroso?</div>
+        <div class="reason-list">
+          <div class="reason clickable" data-modal-title="Dominio no oficial" data-modal-text="El dominio 'secure-verification-account.com' no coincide con ninguna entidad oficial. Los sitios legítimos usan dominios cortos y verificables como banco.cl o empresa.com.">
+            🕐 El dominio no coincide con el sitio oficial
+          </div>
+          <div class="reason clickable" data-modal-title="Solicitud de datos personales" data-modal-text="Este sitio solicita información personal o bancaria. Nunca entregues contraseñas, RUT, números de tarjeta o claves si llegaste desde un enlace inesperado.">
+            ⚠️ Solicita información personal o bancaria
+          </div>
+          <div class="reason clickable" data-modal-title="Patrones de phishing" data-modal-text="El sistema detectó patrones típicos de phishing: URL engañosa, formularios de credenciales sospechosos y estructura similar a sitios conocidos.">
+            🏠 Se detectaron patrones de phishing
+          </div>
+        </div>
+
+        <div class="risk-row">
+          <span class="risk-label">Nivel de riesgo</span>
+          <span class="risk-val">Alto</span>
+        </div>
+        <div class="risk-bar-bg"><div class="risk-bar-fill"></div></div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-target="dashboard">Ignorar</button>
+          <button class="btn btn-outline" data-target="detail">Más información</button>
+          <button class="btn btn-red" data-target="blocked">🛡️ Bloquear sitio</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="detail">
+      <div class="topbar">
+        <div>
+          <h1>Detalle de la amenaza</h1>
+          <p>Los atacantes usan técnicas para engañarte y robar tu información.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-target="threat">←</button>
+        </div>
+      </div>
+
+      <div class="threat-type-card ttype-red">
+        <div class="ttype-ico t-red">🚫</div>
+        <div>
+          <div class="ttype-title">Suplantación de identidad</div>
+          <div class="ttype-desc">El sitio imita a una entidad confiable para ganarse tu confianza. Usa logotipos, colores y textos similares al original.</div>
+        </div>
+      </div>
+
+      <div class="threat-type-card ttype-orange">
+        <div class="ttype-ico t-orange">🔐</div>
+        <div>
+          <div class="ttype-title">Solicitud de datos sensibles</div>
+          <div class="ttype-desc">Pide información personal, contraseñas o datos bancarios. Los sitios legítimos no solicitan esto desde enlaces externos.</div>
+        </div>
+      </div>
+
+      <div class="threat-type-card ttype-yellow">
+        <div class="ttype-ico t-yellow">💡</div>
+        <div>
+          <div class="ttype-title">Urgencia y manipulación</div>
+          <div class="ttype-desc">Usa mensajes de urgencia para que tomes decisiones rápidas sin pensar. "Tu cuenta será bloqueada" es una señal de alerta.</div>
+        </div>
+      </div>
+
+      <div class="tips-box">
+        <h4>Consejos para mantenerte seguro</h4>
+        <div class="tip"><span class="tip-ck">✅</span> Verifica siempre la dirección del sitio web antes de ingresar datos.</div>
+        <div class="tip"><span class="tip-ck">✅</span> No ingreses tus datos en enlaces sospechosos o inesperados.</div>
+        <div class="tip"><span class="tip-ck">✅</span> Activa la verificación en dos pasos en todas tus cuentas.</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" data-target="learning">🎓 Aprender más</button>
+        <button class="btn btn-red"     data-target="blocked">🛡️ Bloquear sitio</button>
+      </div>
+    </section>
+
+    <section class="screen" id="blocked">
+      <div class="blocked-hero">
+        <div class="blocked-content">
+          <div class="blocked-top">
+            <div class="blocked-shield">🛡️</div>
+            <div>
+              <h1>Sitio bloqueado</h1>
+              <p><strong style="color:var(--text)">Has tomado una decisión segura.</strong><br>
+              PhishGuard ha bloqueado el acceso a este sitio porque puede ser malicioso o intentar robar tu información.</p>
+            </div>
+          </div>
+
+          <div class="blocked-domain-row">
+            <div class="bd-left">
+              <div class="bd-lbl">Sitio web bloqueado</div>
+              <div class="bd-val">🌐 &nbsp;secure-verification-account.com</div>
+            </div>
+            <div class="blocked-badge"><span class="bbl-dot"></span> Bloqueado</div>
+          </div>
+
+          <div class="achieve-box">
+            <h4>Lo que lograste hoy</h4>
+            <div class="ach-item"><span class="ach-ck">✅</span> Reconociste señales de phishing en la página que intentabas visitar.</div>
+            <div class="ach-item"><span class="ach-ck">✅</span> Evitaste ingresar tus datos en un sitio sospechoso.</div>
+            <div class="ach-item"><span class="ach-ck">✅</span> Protegiste tu información personal y la de tu organización.</div>
+            <div class="ach-item"><span class="ach-ck">✅</span> Refuerzas tu seguridad digital con cada decisión segura.</div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-ghost"   data-target="history">📋 Ver historial</button>
+            <button class="btn btn-primary" data-target="dashboard">🏠 Volver al panel</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="learning">
+      <div class="topbar">
+        <div>
+          <h1>Aprendizaje</h1>
+          <p>Entiende cómo funcionan los ataques y cómo protegerte.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-target="threat">←</button>
+        </div>
+      </div>
+
+      <div class="learn-grid">
+        <div class="card">
+          <h3>¿Por qué es peligroso?</h3>
+          <div class="learn-row" data-modal-title="Suplantación explicada" data-modal-text="Un atacante copia nombres, colores y logotipos de una entidad real. La clave es revisar que la URL sea oficial y no tenga palabras extra o errores. Ej: banco.cl vs banco-seguro-verifica.com.">
+            <div class="learn-ico">🪪</div>
+            <div><div class="learn-title">Suplantación de identidad</div><div class="learn-desc">El sitio parece confiable, pero no pertenece a la entidad real.</div></div>
+          </div>
+          <div class="learn-row" data-modal-title="Datos sensibles" data-modal-text="Nunca escribas contraseñas, códigos o datos bancarios si llegaste desde un enlace inesperado. Es mejor entrar manualmente al sitio oficial desde tu navegador.">
+            <div class="learn-ico">💳</div>
+            <div><div class="learn-title">Datos sensibles</div><div class="learn-desc">Solicita credenciales que podrían ser robadas.</div></div>
+          </div>
+          <div class="learn-row" data-modal-title="Presión psicológica" data-modal-text="Frases como 'última oportunidad', 'cuenta bloqueada' o 'actúa ahora' buscan que tomes decisiones rápidas sin verificar. Tómate siempre un momento para revisar.">
+            <div class="learn-ico">🚨</div>
+            <div><div class="learn-title">Urgencia y presión</div><div class="learn-desc">Los mensajes urgentes reducen la verificación del usuario.</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Consejos prácticos</h3>
+          <div class="learn-row" data-modal-title="Revisa la URL" data-modal-text="El dominio principal lo dice todo. banco.cl es distinto a banco-seguridad-check.com. Los dominios largos o con palabras extra como 'seguro', 'verifica' o 'check' suelen ser señales de alerta.">
+            <div class="learn-ico">🌐</div>
+            <div><div class="learn-title">Revisa la URL</div><div class="learn-desc">Comprueba que el dominio sea el oficial.</div></div>
+          </div>
+          <div class="learn-row" data-modal-title="No ingreses datos" data-modal-text="Si una página te pide datos sensibles después de entrar desde un enlace recibido por mensaje, cierra la ventana y entra directamente al sitio oficial escribiendo la dirección en el navegador.">
+            <div class="learn-ico">🔒</div>
+            <div><div class="learn-title">No ingreses datos</div><div class="learn-desc">Evita entregar contraseñas desde enlaces sospechosos.</div></div>
+          </div>
+          <div class="learn-row" data-modal-title="Tómate tu tiempo" data-modal-text="La pausa es parte de la seguridad. Antes de hacer clic, revisa: ¿quién envió esto? ¿La URL es oficial? ¿Hay errores de escritura? ¿El tono es urgente o amenazante?">
+            <div class="learn-ico">🧠</div>
+            <div><div class="learn-title">Tómate tu tiempo</div><div class="learn-desc">Desconfía de mensajes que te apuran a actuar.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn btn-ghost"   data-target="threat">← Volver a amenaza</button>
+        <button class="btn btn-ghost"   data-target="history">📋 Ver historial</button>
+        <button class="btn btn-red"     data-target="blocked">🛡️ Bloquear sitio</button>
+      </div>
+    </section>
+
+    <section class="screen" id="history">
+      <div class="topbar">
+        <div>
+          <h1>Historial</h1>
+          <p>Registro completo de actividad, amenazas, bloqueos y aprendizajes.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" data-target="dashboard">🏠</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row-item clickable" data-target="threat">
+          <div class="app-ico" style="background:rgba(255,61,61,.12)">🚨</div>
+          <div class="ri-body"><div class="ri-name">secure-verification-account.com</div><div class="ri-sub">Posible phishing · Pendiente de bloqueo · Hace 5 min</div></div>
+          <span class="pill pill-red">Alto</span>
+        </div>
+        <div class="row-item clickable" data-modal-title="Sitio bloqueado" data-modal-text="El sitio login-verifica-cuenta.net fue bloqueado por imitar a un servicio financiero y solicitar datos sensibles de forma fraudulenta.">
+          <div class="app-ico" style="background:rgba(255,61,61,.1)">⛔</div>
+          <div class="ri-body"><div class="ri-name">login-verifica-cuenta.net</div><div class="ri-sub">Bloqueado automáticamente · Ayer</div></div>
+          <span class="pill pill-red">Bloqueado</span>
+        </div>
+        <div class="row-item clickable" data-modal-title="Gmail seguro" data-modal-text="El correo fue analizado y no se detectaron enlaces sospechosos ni dominios externos de riesgo. Remitente verificado.">
+          <div class="app-ico" style="background:rgba(234,67,53,.12)">📧</div>
+          <div class="ri-body"><div class="ri-name">Correo de Gmail analizado</div><div class="ri-sub">Sin amenazas detectadas · Hace 2 min</div></div>
+          <span class="pill pill-green">Seguro</span>
+        </div>
+        <div class="row-item clickable" data-modal-title="Descarga segura" data-modal-text="El archivo recurso-clase.pdf fue analizado correctamente. Sin comportamiento malicioso ni código sospechoso.">
+          <div class="app-ico" style="background:rgba(0,230,118,.1)">✅</div>
+          <div class="ri-body"><div class="ri-name">recurso-clase.pdf</div><div class="ri-sub">Archivo revisado · Sin riesgo · Ayer</div></div>
+          <span class="pill pill-green">Seguro</span>
+        </div>
+        <div class="row-item clickable" data-modal-title="Correo externo" data-modal-text="El correo externo contenía un enlace acortado. Se recomienda verificar el remitente antes de abrirlo.">
+          <div class="app-ico" style="background:rgba(255,214,0,.1)">📩</div>
+          <div class="ri-body"><div class="ri-name">Correo externo revisado</div><div class="ri-sub">Enlace acortado detectado · Hace 30 min</div></div>
+          <span class="pill pill-yellow">Medio</span>
+        </div>
+        <div class="row-item clickable" data-target="learning">
+          <div class="app-ico" style="background:rgba(21,101,255,.1)">🎓</div>
+          <div class="ri-body"><div class="ri-name">Módulo de aprendizaje completado</div><div class="ri-sub">Consejos contra phishing revisados · Ayer</div></div>
+          <span class="pill pill-blue">Aprendido</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="settings">
+      <div class="topbar">
+        <div>
+          <h1>Configuración</h1>
+          <p>Gestiona la protección, alertas y datos institucionales.</p>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="card">
+          <h3>Protección</h3>
+          <div class="config-item">
+            <div class="config-label">
+              <strong>Protección en tiempo real</strong>
+              <small>Monitorear navegación y descargas.</small>
+            </div>
+            <label class="toggle-wrap">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '✅ Protección activada.' : '⚠️ Protección desactivada.')"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="config-item">
+            <div class="config-label">
+              <strong>Bloqueo automático</strong>
+              <small>Bloquear sitios de alto riesgo automáticamente.</small>
+            </div>
+            <label class="toggle-wrap">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '✅ Bloqueo automático activado.' : '⚠️ Bloqueo automático desactivado.')"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="config-item">
+            <div class="config-label">
+              <strong>Alertas educativas</strong>
+              <small>Mostrar explicaciones detalladas al usuario.</small>
+            </div>
+            <label class="toggle-wrap">
+              <input type="checkbox" checked onchange="showToast(this.checked ? '✅ Alertas educativas activadas.' : '⚠️ Alertas educativas desactivadas.')"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="config-item">
+            <div class="config-label">
+              <strong>Notificaciones push</strong>
+              <small>Recibir alertas inmediatas en el dispositivo.</small>
+            </div>
+            <label class="toggle-wrap">
+              <input type="checkbox" onchange="showToast(this.checked ? '🔔 Notificaciones activadas.' : '🔕 Notificaciones desactivadas.')"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Cliente institucional</h3>
+          <label class="field-label">Nombre de institución</label>
+          <input class="settings-input" id="instName" value="Institución Demo" placeholder="Nombre de la institución"/>
+
+          <label class="field-label">Correo de administrador</label>
+          <input class="settings-input" id="instEmail" value="admin@institucion.edu" placeholder="admin@institucion.edu"/>
+
+          <label class="field-label">Nivel de alerta predeterminado</label>
+          <select class="settings-input" id="alertLevel">
+            <option>Alto y medio</option>
+            <option>Solo alto</option>
+            <option>Todas las alertas</option>
+          </select>
+
+          <button class="btn btn-primary" style="width:100%;margin-top:18px" id="saveSettingsBtn">
+            💾 Guardar configuración
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- /main -->
+</div><!-- /app -->
+
+<script>
+
+(function() {
+  const canvas = document.getElementById('bgCanvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, nodes = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    nodes = [];
+    for (let i = 0; i < 65; i++) {
+      nodes.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - .5) * .28,
+        vy: (Math.random() - .5) * .28,
+      });
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W * .3, H * .5, 0, W * .3, H * .5, W * .55);
+    g.addColorStop(0, 'rgba(5,28,65,.5)');
+    g.addColorStop(1, 'rgba(2,11,24,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    nodes.forEach(n => {
+      n.x += n.vx; n.y += n.vy;
+      if (n.x < 0 || n.x > W) n.vx *= -1;
+      if (n.y < 0 || n.y > H) n.vy *= -1;
+    });
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < 115) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(21,101,255,${(1 - d / 115) * .32})`;
+          ctx.lineWidth   = .55;
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
+        }
+      }
+      ctx.beginPath();
+      ctx.arc(nodes[i].x, nodes[i].y, 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,212,255,.42)';
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize(); draw();
+})();
+
+
+(function() {
+  const c = document.getElementById('gaugeCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const cx = 50, cy = 50, r = 40, lw = 9;
+  // track
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#0d2a4a'; ctx.lineWidth = lw; ctx.stroke();
+  // fill
+  const gr = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+  gr.addColorStop(0, '#1565ff'); gr.addColorStop(.5, '#00a8ff'); gr.addColorStop(1, '#00d4ff');
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * .98);
+  ctx.strokeStyle = gr; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+})();
+
+
+const screens   = document.querySelectorAll('.screen');
+const navBtns   = document.querySelectorAll('.nav-btn');
+
+function showScreen(id) {
+  screens.forEach(s => s.classList.toggle('active', s.id === id));
+  navBtns.forEach(b => b.classList.toggle('active', b.dataset.target === id));
+  document.querySelector('.main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.querySelectorAll('[data-target]').forEach(el => {
+  el.addEventListener('click', () => showScreen(el.dataset.target));
+});
+
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+
+const modal      = document.getElementById('modal');
+const modalTitle = document.getElementById('modalTitle');
+const modalText  = document.getElementById('modalText');
+
+function openModal(title, text) {
+  modalTitle.textContent = title;
+  modalText.textContent  = text;
+  modal.classList.add('show');
+}
+
+document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('show'));
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+
+document.querySelectorAll('[data-modal-title]').forEach(el => {
+  el.addEventListener('click', e => {
+    if (el.dataset.target) return;
+    openModal(el.dataset.modalTitle, el.dataset.modalText);
+  });
+});
+
+
+document.getElementById('loginBtn').addEventListener('click', () => {
+  const emailEl = document.getElementById('loginEmail');
+  const pwEl    = document.getElementById('loginPw');
+  const msgEl   = document.getElementById('loginMsg');
+  const eWrap   = document.getElementById('emailWrap');
+  const pWrap   = document.getElementById('pwWrap');
+
+  eWrap.classList.remove('error'); pWrap.classList.remove('error'); msgEl.textContent = '';
+
+  if (!emailEl.value.includes('@') || !emailEl.value.includes('.')) {
+    eWrap.classList.add('error'); msgEl.textContent = 'Ingresa un correo válido.'; return;
+  }
+  if (pwEl.value.length < 6) {
+    pWrap.classList.add('error'); msgEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'; return;
+  }
+  showToast('✅ Inicio de sesión correcto.');
+  showScreen('dashboard');
+});
+
+document.getElementById('togglePw').addEventListener('click', () => {
+  const pw = document.getElementById('loginPw');
+  pw.type = pw.type === 'password' ? 'text' : 'password';
+});
+
+
+function toggleRT() {
+  const on  = document.getElementById('rtToggle').checked;
+  const txt = document.getElementById('rtStatusText');
+  const lbl = document.getElementById('rtToggleLabel');
+  txt.textContent = on ? 'ACTIVA' : 'DESACTIVADA';
+  txt.style.color = on ? 'var(--green)' : 'var(--red)';
+  lbl.textContent = on ? 'Desactivar' : 'Activar';
+  showToast(on ? '✅ Protección en tiempo real activada.' : '⚠️ Protección en tiempo real desactivada.');
+}
+
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const filter = chip.dataset.filter;
+    document.querySelectorAll('.alert-item').forEach(item => {
+      item.classList.toggle('hidden', filter !== 'all' && item.dataset.kind !== filter);
+    });
+  });
+});
+
+
+document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+  const name  = document.getElementById('instName').value.trim()  || 'Institución Demo';
+  const level = document.getElementById('alertLevel').value;
+  showToast(`💾 Config. guardada: ${name} · ${level}`);
+});
+</script>
+</body>
+</html>
